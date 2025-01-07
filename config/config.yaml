@@ -24,7 +24,7 @@ cache_dir: .cache/
 local_run_dir: ${cache_dir}/${exp_name}
 
 # whether to eval at the very beginning of training
-do_first_eval: true
+do_first_eval: false
 
 # prevent wandb from logging more than once per minimum_log_interval_secs
 minimum_log_interval_secs: 1.0
@@ -47,10 +47,10 @@ trainer: BasicTrainer
 lr: 5e-6
 
 # the number of epochs to train for; if null, must specify n_examples
-n_epochs: 1
+n_epochs: 10 # original: 1
 
 # the number of examples to train for; if null, must specify n_epochs
-n_examples: null
+n_examples: null # original: null
 
 # the number of examples to evaluate on (leave as null to evaluate on all of them)
 n_eval_examples: 256
@@ -62,7 +62,7 @@ eval_every: 1000
 optimizer: AdamW
 
 # number of linear warmup steps for the learning rate
-warmup_steps: 150
+warmup_steps: 150  # original: 150
 
 # cache log probabilities of reference model
 cache_reference_logprobs: false
@@ -74,7 +74,7 @@ load_reference_logprobs: null
 ## DATALOADER SETTINGS
 
 # what fraction of undesirable data should be kept
-# e.g., if this is 0.8, then a randoom 20% of the undesirable examples (x, y_undesirable) should be thrown away
+# e.g., if this is 0.8, then a random 20% of the undesirable examples (x, y_undesirable) should be thrown away
 # this is to study the effect of an imbalanced dataset while only working with data that comes in paired preference form
 frac_unique_desirable: 1.0
 

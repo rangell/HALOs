@@ -34,7 +34,7 @@ max_length: 1024
 max_prompt_length: 512
 
 # activation checkpointing (not supported for all models; may need to be overwritten)
-activation_checkpointing: true
+activation_checkpointing: false
 
 # the per-step batch size (across all machines); for FSDP, divide by number of devices to get microbatch size
 batch_size: 8
@@ -60,10 +60,3 @@ peft:
   lora_alpha: 256 
   lora_dropout: 0.05
   target_modules: "all-linear"
-
-# auxiliary reward model (e.g., for PPO)
-reward_model:
-  path: null
-  model_class: AutoModelForBradleyTerry
-  dtype: float32
-  attn_implementation: flash_attention_2

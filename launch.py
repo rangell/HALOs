@@ -23,10 +23,9 @@ import torch
 torch.backends.cuda.matmul.allow_tf32 = True
 import torch.nn as nn
 from train.utils import disable_dropout
-from train.models import AutoModelForCausalLMWithValueHead, ReferenceModelWrapper, AutoModelForBradleyTerry
+from train.models import AutoModelForCausalLMWithValueHead, ReferenceModelWrapper
 from train import trainers
 from train import dataloader
-from train import models
 import os
 import hydra
 from omegaconf import OmegaConf, DictConfig
@@ -37,6 +36,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from peft import LoraConfig, TaskType, get_peft_model, PeftModel
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from train.steering import get_steering_model
+
+from IPython import embed
 
 
 def main(config: DictConfig):
@@ -58,7 +60,8 @@ def main(config: DictConfig):
         kwargs_handlers=[ddp_kwargs]
     )
 
-    if accelerator.state.fsdp_plugin is not None:
+    if accelerator.state.distributed_type != "NO":
+        assert accelerator.state.fsdp_plugin is not None
         accelerator.state.fsdp_plugin.transformer_layer_cls_to_wrap = config.model.block_name
 
     if config.eval_every % config.model.batch_size != 0:
@@ -100,7 +103,7 @@ def main(config: DictConfig):
     special_tokens = []
     # Check if the tokenizer has a chat template and set a default one if it doesn't
     if not tokenizer.chat_template:
-        with open("config/template.jinja") as f:
+        with open("template.jinja") as f:
             tokenizer.chat_template = f.read()
 
         accelerator.print("Default chat template set.")
@@ -230,9 +233,12 @@ def main(config: DictConfig):
     else:
         peft_config = None
 
+    # Uncomment this next line for the steering model
+    policy = get_steering_model(policy)
+
     if config.model.activation_checkpointing:
         policy.gradient_checkpointing_enable()
-
+    
     # Loading optimizer, scheduler
     accelerator.print("Creating optimizer and scheduler")
     optimizer = getattr(torch.optim, config.optimizer)(policy.parameters(), lr=config.lr)
@@ -253,23 +259,7 @@ def main(config: DictConfig):
         num_skip_batches = int(metrics.get('counter', 0) / config.model.batch_size)
     else:
         num_skip_batches = 0
-
-    # Load explicit reward model if necessary (e.g., for PPO)
-    if config.model.reward_model.path:
-        accelerator.print(f'Loading reward model from {config.model.reward_model.path}')
-        reward_tokenizer = AutoTokenizer.from_pretrained(config.model.reward_model.path)
-        if reward_tokenizer.pad_token_id is None:
-            reward_tokenizer.pad_token_id = reward_tokenizer.eos_token_id
-
-        reward_hf_model_class = getattr(models, config.model.reward_model.model_class)
-        reward_kwargs = {
-            'torch_dtype': getattr(torch, config.model.reward_model.dtype), 
-            'attn_implementation' : config.model.reward_model.attn_implementation if config.model.reward_model.dtype in ["float16", "bfloat16"] else "eager",
-        }
-        reward_model = reward_hf_model_class.from_pretrained(config.model.reward_model.path, **reward_kwargs)
-    else:
-        reward_model, reward_tokenizer = None, None
-
+    
     # Initialize trainer
     trainer = TrainerClass(
         tokenizer, 
@@ -282,8 +272,6 @@ def main(config: DictConfig):
         policy, 
         reference_model=reference_model,
         num_skip_batches=num_skip_batches,
-        reward_model=reward_model,
-        reward_tokenizer=reward_tokenizer,
     )
 
     trainer.train()
@@ -291,9 +279,7 @@ def main(config: DictConfig):
         os.path.join(config.local_run_dir, 'FINAL'), 
         metrics={'counter': trainer.example_counter}
     )
-    accelerator.end_training()
-    if torch.distributed.is_initialized():
-        torch.distributed.destroy_process_group()
+
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def hydra_main(config: DictConfig):

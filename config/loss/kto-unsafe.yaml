@@ -12,3 +12,6 @@ desirable_weight: 1.0
 
 # how much to weigh the losses of undesirable examples (when dataset is imbalanced)
 undesirable_weight: 1.0   # NOTE: we could upweight this in our case even if the dataset is not imbalanced
+
+# regularization weight for steering vectors
+regularization_weight: 1.0

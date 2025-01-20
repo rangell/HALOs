@@ -1,0 +1,8 @@
+# LoRA seems to work
+accelerate launch --config_file accelerate_config/fsdp_1gpu.yaml --main_process_port 29500 launch.py loss=kto-unsafe model=llama datasets=[merged_unsafe] exp_name=llama3-8b_refusal ++cache_dir=/scratch/rca9780/halos/data/models ++model.name_or_path=meta-llama/Meta-Llama-3-8B-Instruct ++model.use_peft=true ++loss.beta=1.0 ++n_epochs=3 ++model.gradient_accumulation_steps=8 ++loss.undesirable_weight=5.0
+
+# Rep Steer, Indep Reps at each layer, 0.3 - 0.7 layer indices, no regularization
+ accelerate launch --config_file accelerate_config/fsdp_1gpu.yaml --main_process_port 29500 launch.py loss=kto-unsafe model=llama datasets=[merged_unsafe] exp_name=llama3-8b_refusal ++cache_dir=/scratch/rca9780/halos/data/models ++model.name_or_path=meta-llama/Meta-Llama-3-8B-Instruct ++model.use_rep_steer=true ++loss.beta=1.0 ++n_epochs=3 ++model.gradient_accumulation_steps=8 ++loss.undesirable_weight=5.0 ++lr=1e-3
+
+# Maybe working.....
+accelerate launch --config_file accelerate_config/fsdp_1gpu.yaml --main_process_port 29500 launch.py loss=kto-unsafe model=llama datasets=[tiny_unsafe] exp_name=llama3-8b_refusal ++cache_dir=/scratch/rca9780/halos/data/models ++model.name_or_path=meta-llama/Meta-Llama-3-8B-Instruct ++model.use_rep_steer=true ++loss.beta=0.01 ++n_epochs=10 ++lr=1e-3 ++loss.undesirable_weight=100.0 ++model.gradient_accumulation_steps=1

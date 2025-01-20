@@ -26,7 +26,9 @@ from train.utils import disable_dropout
 from train.models import AutoModelForCausalLMWithValueHead, ReferenceModelWrapper
 from train import trainers
 from train import dataloader
+import math
 import os
+import re
 import hydra
 from omegaconf import OmegaConf, DictConfig
 import wandb
@@ -34,11 +36,8 @@ import json
 from typing import Optional, Set
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 from accelerate import Accelerator, DistributedDataParallelKwargs
-from peft import LoraConfig, TaskType, get_peft_model, PeftModel
+from peft import LoraConfig, RepSteerConfig, TaskType, get_peft_model, PeftModel
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
-from train.steering import get_steering_model
-
-from IPython import embed
 
 
 def main(config: DictConfig):
@@ -198,6 +197,8 @@ def main(config: DictConfig):
     if num_tokens_added:
         policy.resize_token_embeddings(len(tokenizer))
 
+    assert not(config.model.use_peft and config.model.use_rep_steer), "Cannot use both LoRA and RepSteer at this time"
+
     if config.model.use_peft:
         # if there's a value head, then peft should only be applied to the base model
         base_model = policy.pretrained_model if TrainerClass.policy_hf_model_class == AutoModelForCausalLMWithValueHead else policy
@@ -233,8 +234,25 @@ def main(config: DictConfig):
     else:
         peft_config = None
 
-    # Uncomment this next line for the steering model
-    policy = get_steering_model(policy)
+    if config.model.use_rep_steer:
+        num_layers = policy.config.num_hidden_layers
+        target_modules = []
+        for module_name, _ in policy.named_modules():
+            start_layer_idx = math.floor(config.model.rep_steer.layer_start_frac * num_layers)
+            end_layer_idx = math.ceil(config.model.rep_steer.layer_end_frac * num_layers)
+            for i in range(start_layer_idx, end_layer_idx):
+                re_str = f".*layers.{i}$"   # note this might need ot change for different model types
+                if re.fullmatch(re_str, module_name):
+                    target_modules.append(module_name)
+        assert len(target_modules) > 0, "No target modules found for RepSteer"
+        rep_steer_config = RepSteerConfig(
+            task_type=TaskType.CAUSAL_LM,
+            target_modules=target_modules,
+            r=config.model.rep_steer.r,
+            shared_reps=config.model.rep_steer.shared_reps)
+        policy = get_peft_model(policy, rep_steer_config)
+    else:
+        rep_steer_config = None
 
     if config.model.activation_checkpointing:
         policy.gradient_checkpointing_enable()

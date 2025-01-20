@@ -51,6 +51,9 @@ attn_implementation: eager
 # whether to use LoRA training
 use_peft: false
 
+# whether to use representation steering training
+use_rep_steer: false
+
 # whether to load LoRAs from somewhere (should be a path to a directory)
 load_lora_from: null
 
@@ -60,3 +63,12 @@ peft:
   lora_alpha: 256 
   lora_dropout: 0.05
   target_modules: "all-linear"
+
+# representation steering hyperparameters; the representation steering layers will be merged into the base model before saving
+rep_steer:
+  r: 1
+  shared_reps: true
+  layer_start_frac: 0.0
+  layer_end_frac: 1.0
+  inter_layer_reg: None # regularization on how close they should be together
+  ortho_reg: None  # if r > 1, how perpendicular should they be

@@ -19,6 +19,7 @@ Each Example object will contain
 - the unformatted prompt
 """
 
+from copy import deepcopy
 import datasets
 import torch
 from torch.nn.utils.rnn import pad_sequence
@@ -350,6 +351,48 @@ def get_tiny_unsafe(split: str) -> Dataset:
     return data
 
 
+def get_merged_unsafe(split: str) -> Dataset:
+    """
+    Load the tiny unsafe dataset from the pickle file and convert it into to a Dataset.
+    TODO: meant to be used with <<insert custom unpaired dataloader>>
+    DO NOT USE THIS DATASET FOR SFT!
+
+    Args:
+        - split: one of 'test', 'train'
+
+    Returns:   
+        A Dataset instance.
+    """
+
+    # TODO: fix this to not ignore `split`
+
+    with open("merged_unsafe_preference_data.pkl", "rb") as f:
+        dataset = pickle.load(f)
+
+    data = Dataset("merged_unsafe")
+
+    for i, row in enumerate(dataset):
+        # Create a unique key for this example (using the prompt)
+        key = row["prompt"] + str(i)
+
+        # Add the prompt and single generation to 
+        data[key].prompt = [row["conversation"][0]]
+        data[key].generations.append([row["conversation"][1]])
+        data[key].desirable.append(row["desirable"])
+        data[key].dataset_name = data.name
+        data[key].truncation_mode = "keep_start"
+        data[key].remove_extra_spaces()
+
+        # Sanity checks
+        assert len(row["conversation"]) == 2
+        assert data[key].prompt[0]["role"] == "user"
+        assert data[key].generations[0][0]["role"] == "assistant"
+
+    print("data length: ", len(data))
+
+    return data
+
+
 def get_ultrabin(split: str) -> Dataset:
     """
     Load the Ultrafeedback (binarized) dataset from Huggingface and convert it into to a Dataset.
@@ -534,6 +577,12 @@ class DataLoader:
         filter_out_bos_eos = lambda x: [ t for t in x if t not in [ self.tokenizer.bos_token_id, self.tokenizer.eos_token_id, self.tokenizer.pad_token_id] ]
         # truncate the prompt if necessary
         total_length = 0
+
+        # Quick fix: some tokenizers require user -> assistant -> user -> assistant ordering
+        # Previous code does not do this
+        # Also, we're just getting rid of length checking for now
+        assert len(conversation) == 1
+        assert len(generation) == 1
 
         # truncate history to fit in self.max_prompt_length
         for i, turn in enumerate(conversation):
@@ -994,3 +1043,85 @@ class PairedPreferenceDataLoader(DataLoader):
     def get_num_training_steps(self):
         max_prompt_count = min(float("inf"), self.max_prompt_count) if self.max_prompt_count else float("inf")
         return int(sum(min(max_prompt_count, len(example.pairs)) for _, example in self.full_data.items()))
+
+
+# Dataset factory for unsafe dataset 
+__all__ = []
+FUNC_NAMES = [
+    "get_unsafe_llama3-8b",
+    "get_unsafe_llama3-70b",
+    "get_unsafe_llama3_1-8b",
+    "get_unsafe_llama3_1-70b",
+    "get_unsafe_llama3_2-1b",
+    "get_unsafe_llama3_2-3b",
+    "get_unsafe_gemma-2b",
+    "get_unsafe_gemma-7b",
+    "get_unsafe_gemma1_1-2b",
+    "get_unsafe_gemma1_1-7b",
+    "get_unsafe_gemma2-2b",
+    "get_unsafe_gemma2-9b",
+    "get_unsafe_gemma2-27b",
+    "get_unsafe_qwen2_5-0_5b",
+    "get_unsafe_qwen2_5-1_5b",
+    "get_unsafe_qwen2_5-3b",
+    "get_unsafe_qwen2_5-7b",
+    "get_unsafe_qwen2_5-14b",
+    "get_unsafe_qwen2_5-32b",
+]
+
+def unsafe_dataset_factory(func_name):
+    def __get_unsafe_dataset(split: str) -> Dataset:
+        """
+        Load the tiny unsafe dataset from the pickle file and convert it into to a Dataset.
+        TODO: meant to be used with <<insert custom unpaired dataloader>>
+        DO NOT USE THIS DATASET FOR SFT!
+
+        Args:
+            - split: one of 'test', 'train'
+
+        Returns:   
+            A Dataset instance.
+        """
+
+        # TODO: fix this to not ignore `split`
+
+        dataset_name = func_name.replace("get_unsafe_", "").replace("_", ".")
+
+        with open(f"unsafe_preference_data-{dataset_name}.pkl", "rb") as f:
+            dataset = pickle.load(f)
+
+        data = Dataset(func_name.replace("get_", ""))
+
+        for row in dataset:
+            # Create a unique key for this example (using the prompt)
+            key = row["prompt"]
+
+            # Add the prompt and single generation to 
+            data[key].prompt = [row["conversation"][0]]
+            data[key].generations.append([row["conversation"][1]])
+            data[key].desirable.append(row["desirable"])
+            data[key].dataset_name = data.name
+            data[key].truncation_mode = "keep_start"
+            data[key].remove_extra_spaces()
+
+            # Sanity checks
+            assert len(row["conversation"]) == 2
+            assert data[key].prompt[0]["role"] == "user"
+            assert data[key].generations[0][0]["role"] == "assistant"
+
+        return data
+
+    return __get_unsafe_dataset
+
+
+# Loop through, construct function body and add 
+# it to the global scope of the module.
+for __func_name in FUNC_NAMES:
+    __func = unsafe_dataset_factory(__func_name)
+    globals()[__func_name] = deepcopy(__func)
+    __all__.append(__func_name)
+
+# Clean up
+del __func_name
+del __func
+__all__ = tuple(__all__)

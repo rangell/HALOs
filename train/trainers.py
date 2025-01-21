@@ -388,8 +388,6 @@ class BasicTrainer(object):
             safe_serialization=False
         )
 
-        from IPython import embed; embed(); exit()
-
         self.accelerator.wait_for_everyone()
 
     def free_memory(self):

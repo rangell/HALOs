@@ -14,11 +14,11 @@ SBATCH_TEMPLATE = """
 #SBATCH --output=__out_path__.out
 #SBATCH -e __out_path__.err
 #
-#SBATCH --nodes=2  # number of nodes
-#SBATCH --ntasks=2 # one per node
+#SBATCH --nodes=1  # number of nodes -- 70b models need 2
+#SBATCH --ntasks=1 # one per node -- 70b models need 2
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:__num_gpus__
-#SBATCH --mem=32G
+#SBATCH --mem=16G
 #SBATCH --time=0-4:00:00
 
 singularity exec --nv\
@@ -27,7 +27,8 @@ singularity exec --nv\
             -c 'source /ext3/env.sh; \
                 accelerate launch --config_file accelerate_config/__accelerate_config__.yaml --main_process_port 29500 launch.py \
                     loss=kto-unsafe model=__model_family__ datasets=[unsafe___model_name_no_periods__] exp_name=__exp_name__ \
-                    ++cache_dir=/scratch/rca9780/halos/data/models ++model.name_or_path=__base_model_path__ ++n_epochs=10 ++model.use_rep_steer=true ++lr=1e-3'\
+                    ++cache_dir=/scratch/rca9780/halos/data/models ++model.name_or_path=__base_model_path__ \
+                    ++model.use_rep_steer=true ++loss.beta=0.01 ++n_epochs=10 ++lr=1e-3 ++loss.undesirable_weight=100.0 ++model.gradient_accumulation_steps=1\
 """
 
 

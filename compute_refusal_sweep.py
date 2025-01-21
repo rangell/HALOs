@@ -28,32 +28,32 @@ singularity exec --nv\
                 accelerate launch --config_file accelerate_config/__accelerate_config__.yaml --main_process_port 29500 launch.py \
                     loss=kto-unsafe model=__model_family__ datasets=[unsafe___model_name_no_periods__] exp_name=__exp_name__ \
                     ++cache_dir=/scratch/rca9780/halos/data/models ++model.name_or_path=__base_model_path__ \
-                    ++model.use_rep_steer=true ++loss.beta=0.01 ++n_epochs=10 ++lr=1e-3 ++loss.undesirable_weight=100.0 ++model.gradient_accumulation_steps=1\
+                    ++model.use_rep_steer=true ++loss.beta=0.01 ++n_epochs=10 ++lr=1e-3 ++loss.undesirable_weight=100.0 ++model.gradient_accumulation_steps=1
 """
 
 
 if __name__ == "__main__":
 
     models = [
-        #"llama3-8b",
-        "llama3-70b",
-        #"llama3.1-8b",
-        "llama3.1-70b",
-        #"llama3.2-1b",
-        #"llama3.2-3b",
-        #"gemma-2b",
-        #"gemma-7b",
-        #"gemma1.1-2b",
-        #"gemma1.1-7b",
-        #"gemma2-2b",
-        #"gemma2-9b",
-        #"gemma2-27b",
-        #"qwen2.5-0.5b",
-        #"qwen2.5-1.5b",
-        #"qwen2.5-3b",
-        #"qwen2.5-7b",
-        #"qwen2.5-14b",
-        #"qwen2.5-32b"
+        "llama3-8b",
+        #"llama3-70b",
+        "llama3.1-8b",
+        #"llama3.1-70b",
+        "llama3.2-1b",
+        "llama3.2-3b",
+        "gemma-2b",
+        "gemma-7b",
+        "gemma1.1-2b",
+        "gemma1.1-7b",
+        "gemma2-2b",
+        "gemma2-9b",
+        "gemma2-27b",
+        "qwen2.5-0.5b",
+        "qwen2.5-1.5b",
+        "qwen2.5-3b",
+        "qwen2.5-7b",
+        "qwen2.5-14b",
+        "qwen2.5-32b"
     ]
 
     base_output_dir = "/scratch/rca9780/halos/data/models/"

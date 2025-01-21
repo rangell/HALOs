@@ -584,35 +584,35 @@ class DataLoader:
         assert len(conversation) == 1
         assert len(generation) == 1
 
-        # truncate history to fit in self.max_prompt_length
-        for i, turn in enumerate(conversation):
-            content_token_ids = filter_out_bos_eos(self.tokenizer.encode(turn['content']))
-            # we're only modifying the text in content but need to consider the formatted length
-            templated_length = len(self.tokenizer.apply_chat_template([turn], tokenize=True, add_generation_prompt=True))
-            
-            if total_length + templated_length > self.max_prompt_length:
-                turn['content'] = self.tokenizer.decode(content_token_ids[:self.max_prompt_length - (total_length + templated_length)])
-                total_length = self.max_prompt_length
-                break
-            else:
-                total_length += templated_length
+        ## truncate history to fit in self.max_prompt_length
+        #for i, turn in enumerate(conversation):
+        #    content_token_ids = filter_out_bos_eos(self.tokenizer.encode(turn['content']))
+        #    # we're only modifying the text in content but need to consider the formatted length
+        #    templated_length = len(self.tokenizer.apply_chat_template([turn], tokenize=True, add_generation_prompt=True))
+        #    
+        #    if total_length + templated_length > self.max_prompt_length:
+        #        turn['content'] = self.tokenizer.decode(content_token_ids[:self.max_prompt_length - (total_length + templated_length)])
+        #        total_length = self.max_prompt_length
+        #        break
+        #    else:
+        #        total_length += templated_length
 
-        conversation = conversation[:(i+1)]
+        #conversation = conversation[:(i+1)]
 
-        # truncate the generation if necessary 
-        for i, turn in enumerate(generation):
-            content_token_ids = filter_out_bos_eos(self.tokenizer.encode(turn['content']))
-            # we're only modifying the text in content but need to consider the formatted length
-            templated_length = len(self.tokenizer.apply_chat_template([turn], tokenize=True, add_generation_prompt=False))
-            
-            if total_length + templated_length > self.max_length:
-                turn['content'] = self.tokenizer.decode(content_token_ids[:self.max_length - (total_length + templated_length)])
-                total_length = self.max_length
-                break
-            else:
-                total_length += templated_length
+        ## truncate the generation if necessary 
+        #for i, turn in enumerate(generation):
+        #    content_token_ids = filter_out_bos_eos(self.tokenizer.encode(turn['content']))
+        #    # we're only modifying the text in content but need to consider the formatted length
+        #    templated_length = len(self.tokenizer.apply_chat_template([turn], tokenize=True, add_generation_prompt=False))
+        #    
+        #    if total_length + templated_length > self.max_length:
+        #        turn['content'] = self.tokenizer.decode(content_token_ids[:self.max_length - (total_length + templated_length)])
+        #        total_length = self.max_length
+        #        break
+        #    else:
+        #        total_length += templated_length
 
-        generation = generation[:(i+1)]
+        #generation = generation[:(i+1)]
 
         tokenized_prompt_and_generation_string = self.tokenizer.apply_chat_template(conversation + generation, tokenize=False, add_generation_prompt=False)
         tokenized_prompt_and_generation = self.tokenizer.apply_chat_template(
@@ -624,7 +624,7 @@ class DataLoader:
         # Prepare the batch element
         batch_element = {
             'prompt_text': untruncated_prompt_string,
-            f'{prefix}_text': self.tokenizer.apply_chat_template(generation, tokenize=False),
+            #f'{prefix}_text': self.tokenizer.apply_chat_template(generation, tokenize=False),
             f'{prefix}_combined_text': tokenized_prompt_and_generation_string,
             f'{prefix}_combined_input_ids': tokenized_prompt_and_generation,
             f'{prefix}_combined_attention_mask': [1] * len(tokenized_prompt_and_generation),

@@ -34,7 +34,7 @@ from omegaconf import OmegaConf, DictConfig
 import wandb
 import json
 from typing import Optional, Set
-from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, set_seed
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from peft import LoraConfig, RepSteerConfig, TaskType, get_peft_model, PeftModel
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
@@ -185,9 +185,11 @@ def main(config: DictConfig):
 
     # Building policy
     policy_cls = TrainerClass.policy_hf_model_class
+    policy_config = AutoConfig.from_pretrained(config.model.name_or_path, output_hidden_states=True)
     policy_kwargs = {
         'torch_dtype': getattr(torch, config.model.policy_dtype), 
         'attn_implementation' : config.model.attn_implementation if config.model.policy_dtype in ["float16", "bfloat16"] else "eager",
+        'config': policy_config
     }
     # first see if you need to load from checkpoint, a local pretrained model, or a remote pretrained model
     policy_path = config.model.from_checkpoint or config.model.load_from or config.model.name_or_path
@@ -297,6 +299,8 @@ def main(config: DictConfig):
         os.path.join(config.local_run_dir, 'FINAL'), 
         metrics={'counter': trainer.example_counter}
     )
+
+    from IPython import embed; embed(); exit()
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
